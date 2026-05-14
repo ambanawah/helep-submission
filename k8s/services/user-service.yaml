@@ -1,0 +1,63 @@
+﻿apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: user-data
+  namespace: helep
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  namespace: helep
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+      - name: user-service
+        image: carlos15976/helep-user-service:latest
+        ports:
+        - containerPort: 8001
+        env:
+        - name: KAFKA_BOOTSTRAP
+          value: kafka:9092
+        - name: DB_PATH
+          value: /data/user.db
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: helep-secret
+              key: JWT_SECRET
+        - name: SERVICE_PORT
+          value: "8001"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: user-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  namespace: helep
+spec:
+  selector:
+    app: user-service
+  ports:
+  - port: 8001
+    targetPort: 8001
+  type: ClusterIP

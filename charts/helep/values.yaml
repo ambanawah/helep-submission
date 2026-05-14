@@ -1,0 +1,10 @@
+﻿global:
+  namespace: helep
+  replicaCount: 1
+  image:
+    registry: docker.io
+    username: carlos15976
+    tag: "latest"
+  kafka:
+    bootstrap: helep-kafka-kafka-bootstrap.kafka.svc.cluster.local:9092
+  jwtSecret: "super-secret-key-change-in-prod"

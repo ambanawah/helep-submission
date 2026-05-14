@@ -1,0 +1,83 @@
+﻿apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sos-data
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sos-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.global.replicaCount }}
+  selector:
+    matchLabels:
+      app: sos-service
+  template:
+    metadata:
+      labels:
+        app: sos-service
+    spec:
+      containers:
+      - name: sos-service
+        image: {{ .Values.global.image.registry }}/{{ .Values.global.image.username }}/helep-sos-service:{{ .Values.global.image.tag }}
+        ports:
+        - containerPort: 8002
+        env:
+        - name: KAFKA_BOOTSTRAP
+          value: {{ .Values.global.kafka.bootstrap }}
+        - name: DB_PATH
+          value: /data/sos.db
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: helep-secret
+              key: JWT_SECRET
+        - name: SERVICE_PORT
+          value: "8002"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: sos-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sos-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: sos-service
+  ports:
+  - port: 8002
+    targetPort: 8002
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sos-service-hpa
+  namespace: {{ .Values.global.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sos-service
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

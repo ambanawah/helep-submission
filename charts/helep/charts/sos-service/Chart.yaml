@@ -1,0 +1,4 @@
+﻿apiVersion: v2
+name: sos-service
+description: HELEP sos service
+version: 0.1.0

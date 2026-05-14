@@ -1,0 +1,4 @@
+﻿apiVersion: v2
+name: dispatch-service
+description: HELEP dispatch service
+version: 0.1.0

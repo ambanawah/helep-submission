@@ -1,0 +1,80 @@
+﻿apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dispatch-data
+  namespace: {{ .Values.global.namespace }}
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dispatch-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  replicas: {{ .Values.global.replicaCount }}
+  selector:
+    matchLabels:
+      app: dispatch-service
+  template:
+    metadata:
+      labels:
+        app: dispatch-service
+    spec:
+      containers:
+      - name: dispatch-service
+        image: {{ .Values.global.image.registry }}/{{ .Values.global.image.username }}/helep-dispatch-service:{{ .Values.global.image.tag }}
+        ports:
+        - containerPort: 8003
+        env:
+        - name: KAFKA_BOOTSTRAP
+          value: {{ .Values.global.kafka.bootstrap }}
+        - name: DB_PATH
+          value: /data/dispatch.db
+        - name: MATCHER
+          value: nearest
+        - name: SERVICE_PORT
+          value: "8003"
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dispatch-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dispatch-service
+  namespace: {{ .Values.global.namespace }}
+spec:
+  selector:
+    app: dispatch-service
+  ports:
+  - port: 8003
+    targetPort: 8003
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dispatch-service-hpa
+  namespace: {{ .Values.global.namespace }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dispatch-service
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

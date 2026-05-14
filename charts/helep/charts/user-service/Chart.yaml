@@ -1,0 +1,4 @@
+﻿apiVersion: v2
+name: user-service
+description: HELEP user service
+version: 0.1.0
